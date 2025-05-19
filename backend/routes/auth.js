@@ -80,15 +80,17 @@ router.post('/login', [
     }
 
     // Generate JWT
+    console.log("user in back",user)
     const token = jwt.sign(
       { userId: user.id },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
-
+  const userWOpass={id:user.id,name:user.name,email:user.email,created_at:user.created_at}
     res.json({
       message: 'Login successful',
-      token
+      token,
+     user:userWOpass
     });
   } catch (error) {
     console.error(error);

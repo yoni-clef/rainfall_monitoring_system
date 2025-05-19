@@ -2,10 +2,10 @@
   "name": "rainfall_monitoring_system",
   "version": "1.0.0",
   "description": "Rainfall monitoring system backend",
-  "main": "backend/index.js",
+  "main": "index.js",
   "scripts": {
-    "start": "node backend/index.js",
-    "dev": "nodemon backend/index.js"
+    "start": "node index.js",
+    "dev": "nodemon index.js"
   },
   "keywords": [],
   "author": "",
@@ -24,3 +24,4 @@
     "nodemon": "^2.0.22"
   }
 }
+  

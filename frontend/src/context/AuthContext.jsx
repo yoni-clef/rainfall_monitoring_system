@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { mockUsers } from '../data/mockData';
+import { authAPI } from '../services/api';
+import { ResponsiveContainer } from 'recharts';
 
 const AuthContext = createContext(null);
 
@@ -8,60 +9,58 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is stored in localStorage
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
+    // Check if token is stored in localStorage
+    const token = localStorage.getItem('token');
+    const storedUser = localStorage.getItem('users');
+    if (token && storedUser) {
       setUser(JSON.parse(storedUser));
     }
     setLoading(false);
   }, []);
 
-  const login = (email, password) => {
-    // Mock login - in real app, this would be an API call
-    const foundUser = mockUsers.find(
-      u => u.email === email && u.password === password
-    );
-
-    if (foundUser) {
-      const userData = {
-        id: foundUser.id,
-        name: foundUser.name,
-        email: foundUser.email,
-      };
-      setUser(userData);
+  const login = async (email, password) => {
+    try {
+      const response = await authAPI.login(email, password);
+      // console.log("responce in login",response)
+      const { token, user: userData } = response;
+      
+      // Store token and user data
+      console.log("userData",userData)
+      localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(userData));
+      setUser(userData);
+      
       return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Login failed. Please try again.'
+      };
     }
-    return { success: false, message: 'Invalid credentials' };
   };
 
-  const signup = (name, email, password) => {
-    // Mock signup - in real app, this would be an API call
-    const existingUser = mockUsers.find(u => u.email === email);
-    if (existingUser) {
-      return { success: false, message: 'User already exists' };
+  const signup = async (name, email, password) => {
+    try {
+      const response = await authAPI.signup(name, email, password);
+      const { token, user: userData } = response;
+      
+      // Store token and user data
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(userData));
+      setUser(userData);
+      
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Signup failed. Please try again.'
+      };
     }
-
-    const newUser = {
-      id: mockUsers.length + 1,
-      name,
-      email,
-      password,
-    };
-    mockUsers.push(newUser);
-
-    const userData = {
-      id: newUser.id,
-      name: newUser.name,
-      email: newUser.email,
-    };
-    setUser(userData);
-    localStorage.setItem('user', JSON.stringify(userData));
-    return { success: true };
   };
 
   const logout = () => {
     setUser(null);
+    localStorage.removeItem('token');
     localStorage.removeItem('user');
   };
 

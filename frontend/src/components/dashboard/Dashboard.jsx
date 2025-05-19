@@ -14,6 +14,15 @@ import {
   Toolbar,
   Menu,
   MenuItem,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  Alert,
 } from '@mui/material';
 import {
   LineChart,
@@ -31,21 +40,43 @@ import {
   Logout as LogoutIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
-import { mockRainData } from '../../data/mockData';
+import { rainAPI } from '../../services/api';
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState(null);
   const [rainData, setRainData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [openDialog, setOpenDialog] = useState(false);
+  const [newReading, setNewReading] = useState({
+    level: '',
+    valve_status: 'closed'
+  });
 
+  console.log("user in dash",user)
   useEffect(() => {
     if (!user) {
-      navigate('/login');
+      // navigate('/login');
+      return;
     }
-    // In a real app, this would be an API call
-    setRainData(mockRainData);
+    fetchRainData();
   }, [user, navigate]);
+
+  const fetchRainData = async () => {
+    try {
+      setLoading(true);
+      const response = await rainAPI.getHistory();
+      setRainData(response.data);
+      setError('');
+    } catch (err) {
+      setError('Failed to fetch rain data. Please try again.');
+      console.error('Error fetching rain data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleMenuClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -58,6 +89,21 @@ const Dashboard = () => {
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  const handleAddReading = async () => {
+    try {
+      await rainAPI.addReading(
+        parseInt(newReading.level),
+        newReading.valve_status
+      );
+      setOpenDialog(false);
+      setNewReading({ level: '', valve_status: 'closed' });
+      fetchRainData(); // Refresh data
+    } catch (err) {
+      setError('Failed to add new reading. Please try again.');
+      console.error('Error adding reading:', err);
+    }
   };
 
   const latestData = rainData[0] || {};
@@ -84,7 +130,8 @@ const Dashboard = () => {
             open={Boolean(anchorEl)}
             onClose={handleMenuClose}
           >
-            <MenuItem disabled>
+            <MenuItem disabled sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+              <Typography  sx={{fontSize: '1.2rem', fontWeight: 'bold'}} variant="body2">{user?.name}</Typography>
               <Typography variant="body2">{user?.email}</Typography>
             </MenuItem>
             <MenuItem onClick={handleLogout}>
@@ -95,6 +142,12 @@ const Dashboard = () => {
       </AppBar>
 
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+
         <Grid container spacing={3}>
           {/* Current Status Card */}
           <Grid item xs={12} md={4}>
@@ -119,7 +172,7 @@ const Dashboard = () => {
                   Valve Status: {latestData.valve_status || 'N/A'}
                 </Typography>
                 <Typography variant="body2">
-                  Last Updated: {new Date(latestData.timestamp).toLocaleString()}
+                  Last Updated: {latestData.timestamp ? new Date(latestData.timestamp).toLocaleString() : 'N/A'}
                 </Typography>
               </CardContent>
             </Card>
@@ -145,33 +198,35 @@ const Dashboard = () => {
           </Grid>
 
           {/* Quick Actions Card */}
-          <Grid item xs={12} md={4}>
+          <Grid  xs={12} md={4}>
             <Card sx={{ height: '100%' }}>
               <CardContent>
                 <Typography variant="h6" gutterBottom>
                   Quick Actions
                 </Typography>
-                <Button
+                {/* <Button
                   variant="contained"
                   fullWidth
                   sx={{ mb: 1 }}
                   color="primary"
+                  onClick={() => setOpenDialog(true)}
                 >
                   Add New Reading
-                </Button>
+                </Button> */}
                 <Button
                   variant="outlined"
                   fullWidth
                   color="primary"
+                  onClick={fetchRainData}
                 >
-                  Download Report
+                 Manually Refresh Data
                 </Button>
               </CardContent>
             </Card>
           </Grid>
 
           {/* Chart */}
-          <Grid item xs={12}>
+          <Grid  xs={12}>
             <Paper sx={{ p: 2 }}>
               <Typography variant="h6" gutterBottom>
                 Rainfall Level History
@@ -215,6 +270,44 @@ const Dashboard = () => {
           </Grid>
         </Grid>
       </Container>
+
+      {/* Add New Reading Dialog */}
+      <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
+        <DialogTitle>Add New Reading</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Rain Level (%)"
+            type="number"
+            fullWidth
+            value={newReading.level}
+            onChange={(e) => setNewReading({ ...newReading, level: e.target.value })}
+            inputProps={{ min: 0, max: 100 }}
+            sx={{ mb: 2 }}
+          />
+          <FormControl fullWidth>
+            <InputLabel>Valve Status</InputLabel>
+            <Select
+              value={newReading.valve_status}
+              label="Valve Status"
+              onChange={(e) => setNewReading({ ...newReading, valve_status: e.target.value })}
+            >
+              <MenuItem value="open">Open</MenuItem>
+              <MenuItem value="closed">Closed</MenuItem>
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+          <Button 
+            onClick={handleAddReading}
+            disabled={!newReading.level || newReading.level < 0 || newReading.level > 100}
+          >
+            Add Reading
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
